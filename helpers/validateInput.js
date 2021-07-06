@@ -17,7 +17,7 @@ export const isValidEmail = (input) => {
 };
 
 export const isValidPassword = (input) => {
-    const isValid = passwordRegex.test(trimmedPassword);
+    const isValid = passwordRegex.test(input);
 
     return isValid;
 };

@@ -1837,58 +1837,187 @@ import {
 import { hashPassword } from '../../../helpers/auth';
 
 const handler = async (req, res) => {
-    const data = req.body;
+    if (req.method === 'POST') {
+        const data = req.body;
 
-    const { email, password } = data;
+        const { email, password } = data;
 
-    const validatedEmail =
-        isValidInput(email) || isValidEmail(email) ? true : false;
+        const validatedEmail =
+            isValidInput(email) && isValidEmail(email) ? true : false;
 
-    const validatedPassword =
-        isValidInput(password) || isValidPassword(password) ? true : false;
+        console.log(validatedEmail);
 
-    if (!validatedEmail || !validatedPassword) {
-        if (!validatedEmail && !validatedPassword) {
-            res.status(422).json({
-                message: 'Must enter valid email and password',
-            });
-        } else if (!validatedEmail) {
-            res.status(422).json({ message: 'Must enter valid email' });
-        } else {
-            res.status(422).json({ message: 'Must enter valid password' });
+        const validatedPassword =
+            isValidInput(password) && isValidPassword(password) ? true : false;
+
+        console.log(validatedPassword);
+
+        if (!validatedEmail || !validatedPassword) {
+            if (!validatedEmail && !validatedPassword) {
+                res.status(422).json({
+                    message: 'Must enter valid email and password',
+                });
+            } else if (!validatedEmail) {
+                res.status(422).json({ message: 'Must enter valid email' });
+            } else {
+                res.status(422).json({ message: 'Must enter valid password' });
+            }
+            return;
         }
+
+        let client;
+        try {
+            client = await connectToDatabase();
+        } catch (error) {
+            res.status(500).json({
+                message: 'Failed to connect to database...',
+            });
+            return;
+        }
+
+        const db = client.db();
+
+        let existingUser;
+
+        try {
+            existingUser = await db.collection('users').findOne({ email });
+        } catch (error) {
+            res.status(500).json({
+                message: 'Could not check database for email',
+            });
+            client.close();
+            return;
+        }
+
+        if (existingUser) {
+            res.status(422).json({ message: 'Email already in use' });
+            return;
+        }
+
+        const hashedPassword = await hashPassword(password);
+
+        const newUser = {
+            email,
+            password: hashedPassword,
+        };
+
+        let result;
+
+        try {
+            result = await db.collection('users').insertOne(newUser);
+
+            newUser._id = result.insertedId;
+
+            res.status(201).json({ message: 'Created user!', data: newUser });
+        } catch (error) {
+            res.status(500).json({ message: 'Failed to make user account...' });
+        }
+
+        client.close();
         return;
     }
-
-    let client;
-    try {
-        client = await connectToDatabase();
-    } catch (error) {
-        res.status(500).json({ message: 'Failed to connect to database...' });
-        return;
-    }
-
-    const db = client.db();
-
-    const hashedPassword = hashPassword(password);
-
-    const newUser = {
-        email,
-        password: hashedPassword,
-    };
-
-    let result;
-
-    try {
-        result = await db.collection('users').insertOne(newUser);
-        res.status(201).json({ message: 'Created user!', data: result });
-    } catch (error) {
-        res.status(500).json({ message: 'Failed to make user account...' });
-    }
-
-    client.close();
-    return;
 };
 
 export default handler;
+```
+
+### NextAuth
+
+1.  create a dynamic api route [...nextauth].js
+
+    -   this is done because it needs to be a catch all route
+    -   next auth exposes many routes and handles them
+    -   you can still make your own routes in auth, however you can not reuse a name that nextauth uses
+    -   check nextauth documentation > getting started > rest api to see taken routes
+
+2.  in your [...nextauth] file, import NextAuth and export default it while calling it
+    -   the nextauth function automatically generates the typical handler function
+    -   pass a configuration object to it to set it up (check documentation to see all configurations available)
+
+```js
+import NextAuth from 'next-auth';
+import Providers from 'next-auth/providers';
+
+import { connectToDatabase } from '../../../helpers/db';
+import { verifyPassword } from '../../../helpers/auth';
+
+export default NextAuth({
+    // configuration object props to manage authentication
+    session: {
+        jwt: true,
+    },
+    // configure one or more providers
+    providers: [
+        Providers.Credentials({
+            async authorize(credentials) {
+                let client;
+                try {
+                    client = await connectToDatabase();
+                } catch (error) {
+                    client.close();
+                    throw new Error('Could not connect to database...');
+                }
+
+                const usersCollection = client.db().collections('users');
+
+                // check if a user exists
+                let user;
+                try {
+                    user = await usersCollection.findOne({
+                        email: credentials.email,
+                    });
+                } catch (error) {
+                    client.close();
+                    throw new Error('Unable to query database...');
+                }
+
+                if (!user) {
+                    client.close();
+                    throw new Error('No user found!');
+                }
+
+                // check if passwords match
+                let isValid;
+                try {
+                    isValid = await verifyPassword(
+                        credentials.password,
+                        user.password
+                    );
+                } catch (error) {
+                    client.close();
+                    throw new Error('Could not verify password...');
+                }
+
+                if (!isValid) {
+                    client.close();
+                    throw new Error('Could not log in...');
+                }
+
+                client.close();
+
+                // values here will be added to jwt token
+                return { email: user.email };
+            },
+        }),
+        // add more providers here
+    ],
+});
+```
+
+### NextAuth client side signin
+
+-   you do not need to configure login yourself
+-   the signin function is a function you can call to sign in
+-   request is sent automatically
+
+```js
+import { signIn } from 'next-auth/client';
+
+const result = await signIn('credentials', {
+    redirect: false,
+    email: enteredEmail,
+    password: enteredPassword,
+});
+
+console.log(result);
 ```
