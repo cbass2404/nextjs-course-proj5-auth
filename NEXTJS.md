@@ -2227,8 +2227,6 @@ export default MyApp;
 
 ### Check authentication on Server
 
--
-
 ```js
 import {getSession} from 'next-auth/client'
 
@@ -2243,10 +2241,106 @@ const handler = async (req, res) => {
     // if that all makes sense it will give the session object
     const session = await getSession({req: req})
 
+    // checks to see if session exists
     if(!session){
         res.status(401).json({message: "Not authenticated!}")
         return;
     }
+
+    const userEmail = session.user.email;
+    const oldPassword = req.body.oldPassword;
+    const newPassword = req.body.newPassword;
+
+    // checks if old and new passwords are the same
+    if (oldPassword === newPassword) {
+        req.status(422).json({
+            message: 'Old and New password should not match',
+        });
+        return;
+    }
+
+    const validatedPassword =
+        isValidInput(newPassword) && isValidPassword(newPassword)
+            ? true
+            : false;
+
+    // checks if the password meets the requirements
+    if (!validatedPassword) {
+        req.status(422).json({ message: 'Must enter valid password..' });
+        return;
+    }
+
+    let client;
+    try {
+        client = await connectToDatabase();
+    } catch (error) {
+        req.status(500).json({ message: 'Could not connect to database' });
+    }
+
+    const db = client.db().collection('users');
+
+    // finds users data
+    let user;
+    try {
+        user = await db.findOne({ email: userEmail });
+    } catch (error) {
+        req.status(500).json({ message: 'Could not search database' });
+        client.close();
+        return;
+    }
+
+    if (!user) {
+        res.status(404).json({ message: 'User not found.' });
+        client.close();
+        return;
+    }
+
+    // gets store current password and checks against the oldPassword entered
+    const currentPassword = user.password;
+
+    let passwordsAreEqual;
+    try {
+        passwordsAreEqual = await verifyPassword(oldPassword, currentPassword);
+    } catch (error) {
+        req.status(500).json({
+            message: 'Something went wrong comparing your passwords.',
+        });
+        client.close();
+        return;
+    }
+
+    if (!passwordsAreEqual) {
+        req.status(422).json({ message: 'Invalid password.' });
+        client.close();
+        return;
+    }
+
+    // hashed new password
+    let hashedPassword;
+    try {
+        hashedPassword = await hashPassword(newPassword);
+    } catch (error) {
+        req.status(500).json({
+            message: 'Something went wrong encrypting your password',
+        });
+    }
+
+    // updates password in database
+    try {
+        await db.updateOne(
+            // first argument finds the file to update
+            { email: userEmail },
+            // second argument uses $set to update/add the specified object
+            { $set: { password: hashedPassword } }
+        );
+        req.status(200).json({ message: 'Password updated!' });
+    } catch (error) {
+        req.status(500).json({
+            message: 'Something went wrong updating your password.',
+        });
+    }
+
+    client.close();
 }
 
 export default handler

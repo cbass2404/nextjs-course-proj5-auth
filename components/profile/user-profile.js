@@ -1,31 +1,53 @@
-// import { useEffect, useState } from 'react';
-// import { getSession } from 'next-auth/client';
+import { useState } from 'react';
 
 import ProfileForm from './profile-form';
 import classes from './user-profile.module.css';
 
 function UserProfile() {
-    // const [isLoading, setIsLoading] = useState(true);
-    // const [loadedSession, setLoadedSession] = useState();
+    const [response, setResponse] = useState(null);
+    const [error, setError] = useState(null);
 
-    // useEffect(() => {
-    //     getSession().then((session) => {
-    //         if (!session) {
-    //             window.location.href = '/auth';
-    //         } else {
-    //             setIsLoading(false);
-    //         }
-    //     });
-    // }, []);
+    const handlePasswordUpdate = async (passwordData) => {
+        const result = await fetch('/api/user/change-password', {
+            method: 'PATCH',
+            body: JSON.stringify(passwordData),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
 
-    // if (isLoading) {
-    //     return <p className={classes.profile}>Loading...</p>;
-    // }
+        const data = await result.json();
+
+        if (data.error) {
+            setError(data.error);
+            return;
+        }
+        setResponse(data.message);
+        return;
+    };
+
+    const messageClass = response
+        ? classes.success
+        : error
+        ? classes.error
+        : null;
+
+    const handleResponse = () => {
+        if (response) {
+            return <p className={classes.success}>{response}</p>;
+        }
+
+        if (error) {
+            return <p className={classes.error}>{error}</p>;
+        }
+        return;
+    };
 
     return (
         <section className={classes.profile}>
             <h1>Your User Profile</h1>
-            <ProfileForm />
+            <ProfileForm handlePasswordUpdate={handlePasswordUpdate} />
+            {handleResponse()}
         </section>
     );
 }
