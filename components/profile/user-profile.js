@@ -26,12 +26,6 @@ function UserProfile() {
         return;
     };
 
-    const messageClass = response
-        ? classes.success
-        : error
-        ? classes.error
-        : null;
-
     const handleResponse = () => {
         if (response) {
             return <p className={classes.success}>{response}</p>;
