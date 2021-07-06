@@ -2345,3 +2345,7 @@ const handler = async (req, res) => {
 
 export default handler
 ```
+
+## NEXTAUTH_URL Variable
+
+Be sure to set this variable for production and development so it will stop yelling at you
