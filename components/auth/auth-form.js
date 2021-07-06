@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { signIn } from 'next-auth/client';
+import { useRouter } from 'next/router';
 
 import classes from './auth-form.module.css';
 
@@ -26,6 +27,7 @@ function AuthForm() {
     const passwordInputRef = useRef();
 
     const [isLogin, setIsLogin] = useState(true);
+    const router = useRouter();
 
     function switchAuthModeHandler() {
         setIsLogin((prevState) => !prevState);
@@ -38,12 +40,6 @@ function AuthForm() {
         const enteredPassword = passwordInputRef.current.value;
 
         if (isLogin) {
-            // first arg of signIn is the authorization type you are using
-            // second arg is a configuration object to set up how it should work
-            // if you throw an error in login it redirects to somewhere else automatically unless you configure it to false
-            // if redirect is set to false it will return a promise which yields a resolve
-            // part of the configuration is to send the data you need to log in
-            // in this case, email and password
             const result = await signIn('credentials', {
                 redirect: false,
                 email: enteredEmail,
@@ -51,9 +47,7 @@ function AuthForm() {
             });
 
             if (!result.error) {
-                console.log(result);
-            } else {
-                // error
+                router.replace('/profile');
             }
         } else {
             try {

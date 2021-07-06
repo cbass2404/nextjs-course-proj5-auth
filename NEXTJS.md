@@ -2014,14 +2014,44 @@ export default NextAuth({
 
 ```js
 import { signIn } from 'next-auth/client';
+import { useRouter } from 'next/router';
 
-const result = await signIn('credentials', {
-    redirect: false,
-    email: enteredEmail,
-    password: enteredPassword,
-});
+const router = useRouter();
 
-console.log(result);
+async function submitHandler(event) {
+    event.preventDefault();
+
+    const enteredEmail = emailInputRef.current.value;
+    const enteredPassword = passwordInputRef.current.value;
+
+    if (isLogin) {
+        const result = await signIn('credentials', {
+            // first arg of signIn is the authorization type you are using
+            // second arg is a configuration object to set up how it should work
+            // if you throw an error in login it redirects to somewhere else automatically unless you configure it to false
+            // if redirect is set to false it will return a promise which yields a resolve
+            // part of the configuration is to send the data you need to log in
+            // in this case, email and password
+            redirect: false,
+            email: enteredEmail,
+            password: enteredPassword,
+        });
+
+        if (!result.error) {
+            // replaces the current url and navigates to the route
+            // does not reload app
+            router.replace('/profile');
+        }
+    } else {
+        try {
+            const result = await createUser(enteredEmail, enteredPassword);
+
+            console.log(result);
+        } catch (error) {
+            console.log(error);
+        }
+    }
+}
 ```
 
 ### NextAuth clien side logout
@@ -2133,6 +2163,7 @@ export default UserProfile;
 ```
 
 ```js
+// server side page guards
 import { getSession } from 'next-auth/client';
 
 import UserProfile from '../components/profile/user-profile';
@@ -2151,6 +2182,7 @@ export const getServerSideProps = async (context) => {
     if (!session) {
         return {
             redirect: {
+                // where to redirect to
                 destination: '/auth',
                 // permanent true will ALWAYS redirect
                 // do not set if you want the page accessible
@@ -2165,3 +2197,5 @@ export const getServerSideProps = async (context) => {
 
 export default ProfilePage;
 ```
+
+## Use NextAuth Session Provider Component
