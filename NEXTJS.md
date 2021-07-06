@@ -2253,7 +2253,7 @@ const handler = async (req, res) => {
 
     // checks if old and new passwords are the same
     if (oldPassword === newPassword) {
-        req.status(422).json({
+        res.status(422).json({
             message: 'Old and New password should not match',
         });
         return;
@@ -2266,7 +2266,7 @@ const handler = async (req, res) => {
 
     // checks if the password meets the requirements
     if (!validatedPassword) {
-        req.status(422).json({ message: 'Must enter valid password..' });
+        res.status(422).json({ message: 'Must enter valid password..' });
         return;
     }
 
@@ -2274,7 +2274,7 @@ const handler = async (req, res) => {
     try {
         client = await connectToDatabase();
     } catch (error) {
-        req.status(500).json({ message: 'Could not connect to database' });
+        res.status(500).json({ message: 'Could not connect to database' });
     }
 
     const db = client.db().collection('users');
@@ -2284,7 +2284,7 @@ const handler = async (req, res) => {
     try {
         user = await db.findOne({ email: userEmail });
     } catch (error) {
-        req.status(500).json({ message: 'Could not search database' });
+        res.status(500).json({ message: 'Could not search database' });
         client.close();
         return;
     }
@@ -2302,7 +2302,7 @@ const handler = async (req, res) => {
     try {
         passwordsAreEqual = await verifyPassword(oldPassword, currentPassword);
     } catch (error) {
-        req.status(500).json({
+        res.status(500).json({
             message: 'Something went wrong comparing your passwords.',
         });
         client.close();
@@ -2310,7 +2310,7 @@ const handler = async (req, res) => {
     }
 
     if (!passwordsAreEqual) {
-        req.status(422).json({ message: 'Invalid password.' });
+        res.status(422).json({ message: 'Invalid password.' });
         client.close();
         return;
     }
@@ -2320,7 +2320,7 @@ const handler = async (req, res) => {
     try {
         hashedPassword = await hashPassword(newPassword);
     } catch (error) {
-        req.status(500).json({
+        res.status(500).json({
             message: 'Something went wrong encrypting your password',
         });
     }
@@ -2333,9 +2333,9 @@ const handler = async (req, res) => {
             // second argument uses $set to update/add the specified object
             { $set: { password: hashedPassword } }
         );
-        req.status(200).json({ message: 'Password updated!' });
+        res.status(200).json({ message: 'Password updated!' });
     } catch (error) {
-        req.status(500).json({
+        res.status(500).json({
             message: 'Something went wrong updating your password.',
         });
     }
