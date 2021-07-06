@@ -2198,4 +2198,56 @@ export const getServerSideProps = async (context) => {
 export default ProfilePage;
 ```
 
-## Use NextAuth Session Provider Component
+### Use NextAuth Session Provider Component
+
+-   NextAuth has a Provider wrapper from 'next-auth/client'
+-   used to prevent the need to repeatedly call the server to check authenticity of credentials
+
+```js
+import { Provider } from 'next-auth/client';
+
+import Layout from '../components/layout/layout';
+import '../styles/globals.css';
+
+function MyApp({ Component, pageProps }) {
+    return (
+        // checks if there was a serverSideProp call that returns a session
+        // if the page component made that call, it will not call useSession redundantly
+        // most pages this will be null if it was not called and passed as props
+        <Provider session={pageProps.session}>
+            <Layout>
+                <Component {...pageProps} />
+            </Layout>
+        </Provider>
+    );
+}
+
+export default MyApp;
+```
+
+### Check authentication on Server
+
+-
+
+```js
+import {getSession} from 'next-auth/client'
+
+const handler = async (req, res) => {
+    if(req.method !== 'PATCH'){
+        return;
+    }
+
+    // looks into reqest
+    // checks if session token cookie is part of req
+    // extracts and validates cookie
+    // if that all makes sense it will give the session object
+    const session = await getSession({req: req})
+
+    if(!session){
+        res.status(401).json({message: "Not authenticated!}")
+        return;
+    }
+}
+
+export default handler
+```
