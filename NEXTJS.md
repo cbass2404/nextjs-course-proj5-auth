@@ -1944,6 +1944,8 @@ import { verifyPassword } from '../../../helpers/auth';
 export default NextAuth({
     // configuration object props to manage authentication
     session: {
+        // maxAge prop default length is 30 days
+        // only necessary to set if you want longer or shorter
         jwt: true,
     },
     // configure one or more providers
@@ -2020,4 +2022,146 @@ const result = await signIn('credentials', {
 });
 
 console.log(result);
+```
+
+### NextAuth clien side logout
+
+```js
+import { signOut } from 'next-auth/client';
+
+const handleLogout = () => {
+    // returns a promise, only readable if you don't navigate away
+    signOut();
+};
+```
+
+### managing authentication sessions
+
+-   use the useSession from next-auth/client to check if authentication is valid
+
+```js
+import Link from 'next/link';
+import { useSession } from 'next-auth/client';
+
+import classes from './main-navigation.module.css';
+
+function MainNavigation() {
+    // returns an array of two objects
+    // session - whether a token exists and if it is valid
+    // loading - whether next-auth is determining IF a token exists and if it is valid
+    const [session, loading] = useSession();
+
+    return (
+        <header className={classes.header}>
+            <Link href="/">
+                <a>
+                    <div className={classes.logo}>Next Auth</div>
+                </a>
+            </Link>
+            <nav>
+                <ul>
+                    {!session && !loading && (
+                        <li>
+                            <Link href="/auth">Login</Link>
+                        </li>
+                    )}
+                    {session && (
+                        <li>
+                            <Link href="/profile">Profile</Link>
+                        </li>
+                    )}
+                    {session && (
+                        <li>
+                            <button>Logout</button>
+                        </li>
+                    )}
+                </ul>
+            </nav>
+        </header>
+    );
+}
+
+export default MainNavigation;
+```
+
+### NextAuth page guards
+
+-   getSession from 'next-auth/client' is used to get the active session
+-   returns null if there is no session
+-   can be used to trigger navigation if there is no session
+-   there are two types of page guards
+    1. Client Side
+    2. Server Side
+
+```js
+// client side page guard
+import { useEffect, useState } from 'react';
+import { getSession } from 'next-auth/client';
+
+import ProfileForm from './profile-form';
+import classes from './user-profile.module.css';
+
+function UserProfile() {
+    const [isLoading, setIsLoading] = useState(true);
+    const [loadedSession, setLoadedSession] = useState();
+
+    useEffect(() => {
+        // returns a promise with the session as a response if it exists
+        getSession().then((session) => {
+            if (!session) {
+                // uses the url bar and changes the input to navigate away
+                window.location.href = '/auth';
+            } else {
+                setIsLoading(false);
+            }
+        });
+    }, []);
+
+    if (isLoading) {
+        return <p className={classes.profile}>Loading...</p>;
+    }
+
+    return (
+        <section className={classes.profile}>
+            <h1>Your User Profile</h1>
+            <ProfileForm />
+        </section>
+    );
+}
+
+export default UserProfile;
+```
+
+```js
+import { getSession } from 'next-auth/client';
+
+import UserProfile from '../components/profile/user-profile';
+
+function ProfilePage() {
+    return <UserProfile />;
+}
+
+export const getServerSideProps = async (context) => {
+    // getSession returns the session if it exists
+    // can pass in an object to set a request key
+    // can pass in context.req to key to get the session token cookie
+    // checks to see if it exists and acts accordingly
+    const session = await getSession({ req: context.req });
+
+    if (!session) {
+        return {
+            redirect: {
+                destination: '/auth',
+                // permanent true will ALWAYS redirect
+                // do not set if you want the page accessible
+                permanent: false,
+            },
+        };
+    }
+    return {
+        props: { session },
+    };
+};
+
+export default ProfilePage;
 ```

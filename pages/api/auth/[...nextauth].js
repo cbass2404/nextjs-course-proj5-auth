@@ -7,6 +7,7 @@ import { verifyPassword } from '../../../helpers/auth';
 export default NextAuth({
     session: {
         jwt: true,
+        maxAge: 30 * 24 * 60 * 60,
     },
     providers: [
         Providers.Credentials({
@@ -19,7 +20,7 @@ export default NextAuth({
                     throw new Error('Could not connect to database...');
                 }
 
-                const usersCollection = client.db().collections('users');
+                const usersCollection = client.db().collection('users');
 
                 let user;
                 try {

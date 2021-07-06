@@ -51,7 +51,7 @@ function AuthForm() {
             });
 
             if (!result.error) {
-                // no error
+                console.log(result);
             } else {
                 // error
             }
